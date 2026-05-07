@@ -73,6 +73,8 @@ enum AddressKind {
         #[command(flatten)]
         select_program: SelectProgram,
     },
+    /// Store account address (resolved from the global --store / --store-key flags).
+    Store,
 }
 
 #[derive(Debug, clap::Args)]
@@ -130,6 +132,7 @@ impl super::Command for Inspect {
                         let program_id = select_program.id(client);
                         IdlAccount::address(program_id)
                     }
+                    AddressKind::Store => *store,
                 };
                 println!("{address}");
             }

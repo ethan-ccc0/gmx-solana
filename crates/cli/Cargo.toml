@@ -46,6 +46,7 @@ gmsol-sdk = { workspace = true, features = [
     "timelock",
     "liquidity-provider",
 ] }
+gmsol-mock-chainlink-verifier = { workspace = true }
 
 eyre = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }

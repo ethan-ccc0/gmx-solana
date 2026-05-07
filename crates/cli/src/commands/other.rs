@@ -1,5 +1,10 @@
 use std::num::NonZeroUsize;
 
+use gmsol_mock_chainlink_verifier::{
+    accounts as mock_verifier_accounts, instruction as mock_verifier_instruction,
+    DEFAULT_ACCESS_CONTROLLER_ACCOUNT_SEEDS, DEFAULT_VERIFIER_ACCOUNT_SEEDS,
+    ID as MOCK_VERIFIER_ID,
+};
 use gmsol_sdk::{
     ops::IdlOps,
     programs::anchor_lang::{self, prelude::Pubkey, system_program},
@@ -84,6 +89,16 @@ enum Command {
         /// Maximum number of resizes allowed in a single transaction.
         #[arg(long, default_value_t = NonZeroUsize::new(6).unwrap())]
         resize_limit: NonZeroUsize,
+    },
+    /// Initialize the `gmsol_mock_chainlink_verifier` program (for local validators only).
+    ///
+    /// This sets up the singleton verifier and access controller PDAs, granting
+    /// the given `--user` permission to call `verify`. Defaults to the current
+    /// store address when `--user` is omitted.
+    InitMockChainlinkVerifier {
+        /// User pubkey allowed to call `verify`. Defaults to the current store address.
+        #[arg(long)]
+        user: Option<Pubkey>,
     },
 }
 
@@ -240,6 +255,29 @@ impl super::Command for Other {
                 }
 
                 bundle
+            }
+            Command::InitMockChainlinkVerifier { user } => {
+                let user_pubkey = user.unwrap_or(*ctx.store());
+                let (verifier_account, _) = Pubkey::find_program_address(
+                    &[DEFAULT_VERIFIER_ACCOUNT_SEEDS],
+                    &MOCK_VERIFIER_ID,
+                );
+                let (access_controller, _) = Pubkey::find_program_address(
+                    &[DEFAULT_ACCESS_CONTROLLER_ACCOUNT_SEEDS],
+                    &MOCK_VERIFIER_ID,
+                );
+
+                client
+                    .store_transaction()
+                    .program(MOCK_VERIFIER_ID)
+                    .anchor_accounts(mock_verifier_accounts::Initialize {
+                        payer: client.payer(),
+                        verifier_account,
+                        access_controller,
+                        system_program: system_program::ID,
+                    })
+                    .anchor_args(mock_verifier_instruction::Initialize { user: user_pubkey })
+                    .into_bundle_with_options(options)?
             }
         };
         client.send_or_serialize(bundle).await?;
